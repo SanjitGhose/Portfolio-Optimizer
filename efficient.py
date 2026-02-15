@@ -389,7 +389,7 @@ def main():
         optimal_sharpe_weights, mean_returns, cov_matrix, rf_rate
     )
     
-    min_vol_weights = optimize_portfolio(mean_returns, cov_matrix, rf_free_rate, target='volatility')
+    min_vol_weights = optimize_portfolio(mean_returns, cov_matrix, rf_rate, target='volatility')
     minvol_ret, minvol_std, minvol_sharpe = calculate_portfolio_metrics(
         min_vol_weights, mean_returns, cov_matrix, rf_rate
     )
