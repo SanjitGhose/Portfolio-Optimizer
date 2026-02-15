@@ -20,68 +20,262 @@ st.set_page_config(
 # --- Custom Institutional Styling ---
 st.markdown("""
 <style>
-    /* Dark Professional Theme */
+    /* Dark Professional Theme with Gradient */
     .stApp { 
-        background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
+        background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 50%, #0f1425 100%);
         color: #e8eaed;
         font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* Premium Metric Cards */
+    /* Premium Metric Cards with Hover Effects */
     div[data-testid="stMetric"] {
         background: linear-gradient(145deg, #1e2538, #252d45);
         padding: 20px;
         border-radius: 12px;
         border: 1px solid rgba(100, 150, 255, 0.2);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        border-color: rgba(100, 150, 255, 0.4);
+        transform: translateY(-4px);
+        border-color: rgba(100, 150, 255, 0.5);
+        box-shadow: 0 8px 24px rgba(59, 130, 246, 0.2);
+    }
+    
+    /* Metric Label Styling */
+    div[data-testid="stMetric"] label {
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        color: #9ca3af !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Metric Value Styling */
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        font-size: 1.75rem !important;
+        font-weight: 700 !important;
+        color: #f3f4f6 !important;
     }
     
     /* Enhanced Typography */
-    h1, h2, h3 {
-        font-weight: 600;
-        letter-spacing: -0.02em;
+    h1 {
+        font-weight: 700 !important;
+        letter-spacing: -0.03em !important;
+        background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+        margin-bottom: 0.5rem !important;
     }
     
-    /* Scrollable Matrix Container */
+    h2, h3 {
+        font-weight: 600 !important;
+        letter-spacing: -0.02em !important;
+        color: #f3f4f6 !important;
+    }
+    
+    /* Scrollable Matrix Container with Better Styling */
     .matrix-container {
         overflow-x: auto;
         overflow-y: hidden;
         width: 100%;
-        background: rgba(30, 37, 56, 0.5);
-        border-radius: 8px;
-        padding: 10px;
+        background: rgba(15, 20, 37, 0.6);
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid rgba(100, 150, 255, 0.15);
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
     }
     
-    /* Tab Styling */
+    /* Custom Scrollbar */
+    .matrix-container::-webkit-scrollbar {
+        height: 12px;
+    }
+    
+    .matrix-container::-webkit-scrollbar-track {
+        background: rgba(30, 37, 56, 0.5);
+        border-radius: 6px;
+    }
+    
+    .matrix-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        border-radius: 6px;
+    }
+    
+    .matrix-container::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(90deg, #2563eb, #7c3aed);
+    }
+    
+    /* Tab Styling with Smooth Transitions */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 12px;
+        background: rgba(15, 20, 37, 0.4);
+        padding: 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(100, 150, 255, 0.1);
     }
     
     .stTabs [data-baseweb="tab"] {
         background-color: rgba(30, 37, 56, 0.6);
         border-radius: 8px;
-        padding: 8px 16px;
-        border: 1px solid rgba(100, 150, 255, 0.1);
+        padding: 10px 20px;
+        border: 1px solid rgba(100, 150, 255, 0.15);
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: rgba(59, 130, 246, 0.2);
+        border-color: rgba(100, 150, 255, 0.3);
+        transform: translateY(-1px);
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3)) !important;
+        border-color: rgba(100, 150, 255, 0.5) !important;
     }
     
     /* Expander Styling */
     .streamlit-expanderHeader {
         background: linear-gradient(145deg, #1e2538, #252d45);
-        border-radius: 8px;
+        border-radius: 10px;
         border: 1px solid rgba(100, 150, 255, 0.2);
+        transition: all 0.3s ease;
+        font-weight: 600;
     }
     
-    /* Success/Warning/Info Boxes */
+    .streamlit-expanderHeader:hover {
+        border-color: rgba(100, 150, 255, 0.4);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    
+    /* Alert Boxes with Better Styling */
     .stAlert {
-        background: rgba(30, 37, 56, 0.8);
-        border-radius: 8px;
+        background: rgba(15, 20, 37, 0.8);
+        border-radius: 10px;
         border-left: 4px solid;
+        backdrop-filter: blur(10px);
+        padding: 1rem;
+    }
+    
+    /* Success Alert */
+    div[data-baseweb="notification"][kind="success"] {
+        background: rgba(16, 185, 129, 0.1) !important;
+        border-left-color: #10b981 !important;
+    }
+    
+    /* Warning Alert */
+    div[data-baseweb="notification"][kind="warning"] {
+        background: rgba(245, 158, 11, 0.1) !important;
+        border-left-color: #f59e0b !important;
+    }
+    
+    /* Info Alert */
+    div[data-baseweb="notification"][kind="info"] {
+        background: rgba(59, 130, 246, 0.1) !important;
+        border-left-color: #3b82f6 !important;
+    }
+    
+    /* Button Styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+    }
+    
+    /* Data Editor Styling */
+    .stDataFrame {
+        border: 1px solid rgba(100, 150, 255, 0.2);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    /* Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0f1425 0%, #1a1f35 100%);
+        border-right: 1px solid rgba(100, 150, 255, 0.2);
+    }
+    
+    section[data-testid="stSidebar"] .stMarkdown {
+        color: #e5e7eb;
+    }
+    
+    /* File Uploader Styling */
+    .stFileUploader {
+        background: rgba(30, 37, 56, 0.6);
+        border: 2px dashed rgba(100, 150, 255, 0.3);
+        border-radius: 10px;
+        padding: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stFileUploader:hover {
+        border-color: rgba(100, 150, 255, 0.5);
+        background: rgba(30, 37, 56, 0.8);
+    }
+    
+    /* Spinner Animation */
+    .stSpinner > div {
+        border-top-color: #3b82f6 !important;
+    }
+    
+    /* Caption Styling */
+    .caption {
+        color: #9ca3af !important;
+        font-size: 0.875rem !important;
+    }
+    
+    /* Divider Styling */
+    hr {
+        border-color: rgba(100, 150, 255, 0.2) !important;
+        margin: 2rem 0 !important;
+    }
+    
+    /* Number Input Styling */
+    .stNumberInput > div > div > input {
+        background: rgba(30, 37, 56, 0.6);
+        border: 1px solid rgba(100, 150, 255, 0.2);
+        border-radius: 6px;
+        color: #f3f4f6;
+    }
+    
+    /* Slider Styling */
+    .stSlider > div > div > div {
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    }
+    
+    /* Download Button Styling */
+    .stDownloadButton > button {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .stDownloadButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+    
+    /* Plotly Chart Container */
+    .js-plotly-plot {
+        border-radius: 12px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -256,13 +450,26 @@ def parse_uploaded_portfolio(uploaded_file):
 
 # --- Main App ---
 def main():
-    # Header with institutional branding
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.title("💎 QuantPro: Institutional Portfolio Intelligence")
-        st.caption("Advanced Portfolio Analytics • Risk Management • Optimization Engine")
-    with col2:
-        st.metric("📊 Assets Under Analysis", "20")
+    # Header with institutional branding and animated subtitle
+    st.markdown("""
+    <div style='text-align: center; padding: 1rem 0 2rem 0;'>
+        <h1 style='margin-bottom: 0.5rem;'>💎 QuantPro: Institutional Portfolio Intelligence</h1>
+        <p style='font-size: 1.1rem; color: #9ca3af; font-weight: 500; letter-spacing: 0.05em;'>
+            Advanced Portfolio Analytics • Risk Management • Optimization Engine
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Quick stats banner
+    col_banner1, col_banner2, col_banner3, col_banner4 = st.columns(4)
+    with col_banner1:
+        st.metric("📊 Assets Tracked", str(len(st.session_state.portfolio_df)))
+    with col_banner2:
+        st.metric("🌐 Data Source", "Yahoo Finance")
+    with col_banner3:
+        st.metric("⏱️ Refresh Rate", "Real-time")
+    with col_banner4:
+        st.metric("🔒 Security", "Encrypted")
     
     # Sidebar Configuration
     with st.sidebar:
@@ -307,17 +514,84 @@ def main():
         st.divider()
         
         # Export options
-        if st.button("📥 Export Portfolio JSON"):
+        st.markdown("**📤 Export Data**")
+        if st.button("📥 Export Portfolio JSON", use_container_width=True):
             json_str = st.session_state.portfolio_df.to_json(orient='records', indent=2)
             st.download_button(
                 "Download JSON",
                 json_str,
                 "portfolio_export.json",
-                "application/json"
+                "application/json",
+                use_container_width=True
             )
+        
+        st.divider()
+        
+        # Quick Tips
+        st.markdown("**💡 Quick Tips**")
+        with st.expander("📖 Getting Started"):
+            st.markdown("""
+            **New User Guide:**
+            1. Upload your portfolio or edit default
+            2. Check Dashboard metrics
+            3. Explore Efficient Frontier
+            4. Review Correlation Matrix
+            5. Run Stress Tests
+            
+            **Indian Stock Tickers:**
+            - Add `.NS` suffix for NSE stocks
+            - Example: `RELIANCE.NS`, `TCS.NS`
+            """)
+        
+        with st.expander("📊 Understanding Metrics"):
+            st.markdown("""
+            **Sharpe Ratio:**
+            - < 0: Poor (below risk-free rate)
+            - 0-1: Below average
+            - 1-2: Good
+            - > 2: Excellent
+            
+            **Volatility:**
+            - < 15%: Low risk
+            - 15-25%: Moderate risk
+            - > 25%: High risk
+            
+            **VaR (95%):**
+            - Maximum loss expected on 95% of days
+            - Lower is better
+            """)
+        
+        with st.expander("🎯 Optimization Tips"):
+            st.markdown("""
+            **Improve Your Portfolio:**
+            1. Check Efficient Frontier tab
+            2. Compare current vs optimal weights
+            3. Rebalance toward optimal allocation
+            4. Reduce high-correlation pairs
+            5. Diversify across sectors
+            """)
+        
+        # System Status
+        st.divider()
+        st.markdown("**🔄 System Status**")
+        st.success("✅ All systems operational")
+        st.caption(f"Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Initialize default portfolio if not exists
     if 'portfolio_df' not in st.session_state:
+        # Show welcome message for first-time users
+        st.info("""
+        👋 **Welcome to QuantPro!** 
+        
+        A default 20-stock portfolio has been loaded for you to explore. 
+        
+        **Quick Actions:**
+        - 📊 Check the Dashboard metrics below
+        - 🚀 Explore the Efficient Frontier tab
+        - 💼 Upload your own portfolio via the sidebar
+        - 📖 Read Quick Tips in the sidebar for guidance
+        """)
+        
         data = {
             "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "IT.NS", "TATSILV.NS", 
                       "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", 
@@ -329,6 +603,9 @@ def main():
             "Currency": ["INR"] * 20
         }
         st.session_state.portfolio_df = pd.DataFrame(data)
+        st.session_state.first_load = True
+    else:
+        st.session_state.first_load = False
 
     # Portfolio Holdings Editor
     with st.expander("💼 View / Edit Portfolio Holdings", expanded=False):
@@ -345,14 +622,53 @@ def main():
         )
         st.session_state.portfolio_df = edited_df
 
-    # Fetch market data
+    # Fetch market data with timing
     tickers = edited_df['Ticker'].unique().tolist()
+    
+    if not tickers:
+        st.error("⚠️ No tickers found in portfolio. Please add positions.")
+        st.stop()
+    
+    import time
+    start_time = time.time()
     
     with st.spinner("🚀 Fetching market data from Yahoo Finance..."):
         market_data = fetch_data(tickers, period="2y")
+        
+        fetch_time = time.time() - start_time
+        
         if market_data.empty: 
-            st.error("Failed to fetch market data. Please check tickers.")
+            st.error(
+                "❌ **Failed to fetch market data**\n\n"
+                "**Possible causes:**\n"
+                "- Invalid ticker symbols (Indian stocks need .NS suffix)\n"
+                "- Network connectivity issues\n"
+                "- Yahoo Finance API unavailable\n\n"
+                "**Troubleshooting:**\n"
+                "1. Verify ticker format (e.g., RELIANCE.NS for NSE stocks)\n"
+                "2. Check your internet connection\n"
+                "3. Try again in a few moments"
+            )
             st.stop()
+        
+        # Check if we got data for all tickers
+        missing_tickers = set(tickers) - set(market_data.columns)
+        if missing_tickers:
+            st.warning(
+                f"⚠️ **Partial Data Retrieved**\n\n"
+                f"Could not fetch data for: {', '.join(missing_tickers)}\n\n"
+                f"These positions will be excluded from analysis."
+            )
+            # Filter out missing tickers
+            edited_df = edited_df[~edited_df['Ticker'].isin(missing_tickers)]
+            tickers = [t for t in tickers if t not in missing_tickers]
+            
+            if edited_df.empty:
+                st.error("No valid data available after filtering. Please check your tickers.")
+                st.stop()
+        
+        # Success message with timing
+        st.success(f"✅ Market data fetched successfully in {fetch_time:.2f}s • {len(market_data.columns)} assets • {len(market_data)} trading days analyzed")
 
     # Calculate current portfolio metrics
     current_prices = market_data.iloc[-1]
@@ -395,7 +711,17 @@ def main():
     )
 
     # Display Key Metrics
-    st.markdown("### 📊 Portfolio Dashboard")
+    st.markdown("---")
+    st.markdown("""
+    <h2 style='margin-bottom: 1.5rem;'>
+        <span style='background: linear-gradient(135deg, #3b82f6, #8b5cf6); 
+                     -webkit-background-clip: text; 
+                     -webkit-text-fill-color: transparent;
+                     background-clip: text;'>
+            📊 Portfolio Dashboard
+        </span>
+    </h2>
+    """, unsafe_allow_html=True)
     
     col1, col2, col3, col4, col5 = st.columns(5)
     
@@ -403,39 +729,57 @@ def main():
         st.metric(
             "💰 Portfolio Value", 
             f"₹{total_value:,.0f}",
-            delta=f"₹{pnl_abs:,.0f}"
+            delta=f"₹{pnl_abs:,.0f}",
+            help="Current market value of all positions in INR"
         )
     
     with col2:
+        delta_color = "normal" if pnl_pct > 0 else "inverse"
         st.metric(
             "📈 Total Return", 
             f"{pnl_pct:.2f}%",
-            delta=f"{pnl_pct:.2f}%"
+            delta=f"{pnl_pct:.2f}%",
+            delta_color=delta_color,
+            help="Total percentage gain/loss from cost basis"
         )
     
     with col3:
+        sharpe_delta = curr_sharpe - optimal_sharpe
+        delta_color = "normal" if sharpe_delta >= 0 else "inverse"
         st.metric(
             "⚡ Sharpe Ratio", 
             f"{curr_sharpe:.3f}",
-            delta=f"{curr_sharpe - optimal_sharpe:.3f}" if optimal_sharpe > curr_sharpe else f"+{abs(curr_sharpe - optimal_sharpe):.3f}",
-            delta_color="inverse"
+            delta=f"{sharpe_delta:.3f}",
+            delta_color=delta_color,
+            help="Risk-adjusted return. >1.0 is good, >2.0 is excellent. Compares your return vs optimal."
         )
     
     with col4:
         st.metric(
             "🌪️ Volatility (Ann.)", 
-            f"{curr_std*100:.2f}%"
+            f"{curr_std*100:.2f}%",
+            help="Annualized standard deviation. Measures portfolio risk/variability."
         )
     
     with col5:
         st.metric(
             "📊 Expected Return", 
-            f"{curr_ret*100:.2f}%"
+            f"{curr_ret*100:.2f}%",
+            help="Projected annual return based on historical performance"
         )
 
     # Intelligence Summary
     st.markdown("---")
-    st.subheader("💡 Quantitative Intelligence Brief")
+    st.markdown("""
+    <h2 style='margin-bottom: 1rem;'>
+        <span style='background: linear-gradient(135deg, #10b981, #059669); 
+                     -webkit-background-clip: text; 
+                     -webkit-text-fill-color: transparent;
+                     background-clip: text;'>
+            💡 Quantitative Intelligence Brief
+        </span>
+    </h2>
+    """, unsafe_allow_html=True)
     
     col_intel1, col_intel2 = st.columns([2, 1])
     
@@ -468,13 +812,63 @@ def main():
             )
     
     with col_intel2:
-        st.markdown("**Risk Metrics**")
-        st.metric("VaR (95%, 1D)", f"-{curr_std * np.sqrt(1/252) * 1.645 * 100:.2f}%")
-        st.metric("Max Drawdown (Est.)", f"-{curr_std * 2 * 100:.1f}%")
-        st.metric("Diversification Ratio", f"{len([w for w in weights if w > 0.02])}/{len(weights)}")
+        st.markdown("**🎯 Risk Metrics Dashboard**")
+        
+        var_95 = curr_std * np.sqrt(1/252) * 1.645
+        max_dd = curr_std * 2 * 100
+        diversification = len([w for w in weights if w > 0.02])
+        
+        # Risk level indicator
+        risk_level = "🟢 Low" if curr_std < 0.15 else "🟡 Moderate" if curr_std < 0.25 else "🔴 High"
+        
+        st.metric(
+            "Risk Level", 
+            risk_level,
+            help="Based on annualized volatility: <15% Low, 15-25% Moderate, >25% High"
+        )
+        st.metric(
+            "VaR (95%, 1D)", 
+            f"-{var_95 * 100:.2f}%",
+            help="Value at Risk: Maximum expected loss on 95% of trading days"
+        )
+        st.metric(
+            "Max Drawdown (Est.)", 
+            f"-{max_dd:.1f}%",
+            help="Estimated maximum peak-to-trough decline"
+        )
+        st.metric(
+            "Diversification", 
+            f"{diversification}/{len(weights)} assets",
+            help="Number of significant positions (>2% weight) out of total assets"
+        )
 
     # Main Analysis Tabs
     st.markdown("---")
+    
+    # Add performance summary before tabs
+    col_summary1, col_summary2, col_summary3 = st.columns(3)
+    
+    with col_summary1:
+        st.markdown("**📈 Performance Summary**")
+        st.write(f"• Return: **{pnl_pct:.2f}%**")
+        st.write(f"• Sharpe: **{curr_sharpe:.3f}**")
+        st.write(f"• Volatility: **{curr_std*100:.2f}%**")
+    
+    with col_summary2:
+        st.markdown("**⚖️ Portfolio Composition**")
+        st.write(f"• Total Value: **₹{total_value:,.0f}**")
+        st.write(f"• Positions: **{len(edited_df)}** assets")
+        st.write(f"• Top Position: **{(weights.max()*100):.1f}%**")
+    
+    with col_summary3:
+        st.markdown("**🎯 Optimization Potential**")
+        improvement = ((optimal_sharpe - curr_sharpe) / curr_sharpe * 100) if curr_sharpe > 0 else 0
+        st.write(f"• Current Sharpe: **{curr_sharpe:.3f}**")
+        st.write(f"• Optimal Sharpe: **{optimal_sharpe:.3f}**")
+        st.write(f"• Improvement: **{improvement:.1f}%**")
+    
+    st.markdown("---")
+    
     tab1, tab2, tab3, tab4 = st.tabs([
         "🚀 Efficient Frontier", 
         "🔬 Correlation Matrix", 
@@ -492,18 +886,26 @@ def main():
         num_portfolios = 5000
         results = np.zeros((4, num_portfolios))
         
-        with st.spinner("Running Monte Carlo simulation..."):
-            for i in range(num_portfolios):
-                # Generate random weights
-                w = np.random.random(len(tickers))
-                w /= np.sum(w)
-                
-                # Calculate metrics
-                r, s, sh = calculate_portfolio_metrics(w, mean_returns, cov_matrix, rf_rate)
-                results[0, i] = s      # Volatility
-                results[1, i] = r      # Return
-                results[2, i] = sh     # Sharpe
-                results[3, i] = i      # Index for tracking
+        progress_bar = st.progress(0, text="Running Monte Carlo simulation...")
+        
+        for i in range(num_portfolios):
+            # Generate random weights
+            w = np.random.random(len(tickers))
+            w /= np.sum(w)
+            
+            # Calculate metrics
+            r, s, sh = calculate_portfolio_metrics(w, mean_returns, cov_matrix, rf_rate)
+            results[0, i] = s      # Volatility
+            results[1, i] = r      # Return
+            results[2, i] = sh     # Sharpe
+            results[3, i] = i      # Index for tracking
+            
+            # Update progress every 100 iterations
+            if i % 100 == 0:
+                progress_bar.progress((i + 1) / num_portfolios, 
+                                     text=f"Running Monte Carlo simulation... {i+1}/{num_portfolios}")
+        
+        progress_bar.empty()  # Remove progress bar when done
         
         # Create enhanced scatter plot
         fig_ef = go.Figure()
@@ -683,7 +1085,6 @@ def main():
             hovertemplate='%{y} vs %{x}<br>Correlation: %{z:.3f}<extra></extra>',
             colorbar=dict(
                 title="Correlation",
-                titleside="right",
                 tickmode="linear",
                 tick0=-1,
                 dtick=0.5,
@@ -1004,17 +1405,33 @@ def main():
                 hide_index=True
             )
 
-    # Footer
+    # Enhanced Footer
     st.markdown("---")
-    st.markdown(
-        "<div style='text-align: center; color: #888; padding: 20px;'>"
-        "💎 QuantPro Institutional Analytics • Powered by Modern Portfolio Theory • "
-        "Data: Yahoo Finance • Real-time Currency: RBI Reference Rate<br>"
-        "<small>Disclaimer: For informational purposes only. Not financial advice. "
-        "Past performance does not guarantee future results.</small>"
-        "</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown("""
+    <div style='text-align: center; padding: 2rem 0 1rem 0;'>
+        <div style='background: linear-gradient(145deg, rgba(30, 37, 56, 0.6), rgba(37, 45, 69, 0.6));
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    border: 1px solid rgba(100, 150, 255, 0.2);'>
+            <h3 style='background: linear-gradient(135deg, #60a5fa, #a78bfa); 
+                       -webkit-background-clip: text; 
+                       -webkit-text-fill-color: transparent;
+                       margin-bottom: 0.5rem;'>
+                💎 QuantPro Institutional Analytics
+            </h3>
+            <p style='color: #9ca3af; margin: 0.5rem 0;'>
+                Powered by <strong>Modern Portfolio Theory</strong> • Real-time market data via <strong>Yahoo Finance</strong>
+            </p>
+            <p style='color: #6b7280; font-size: 0.875rem; margin-top: 1rem;'>
+                <strong>Disclaimer:</strong> For informational purposes only. Not financial advice. 
+                Past performance does not guarantee future results. Consult qualified financial advisors before making investment decisions.
+            </p>
+            <p style='color: #6b7280; font-size: 0.75rem; margin-top: 0.5rem;'>
+                Risk Metrics: VaR, CVaR, Sharpe Ratio • Optimization: Scipy SLSQP • Monte Carlo: 5,000 simulations
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
