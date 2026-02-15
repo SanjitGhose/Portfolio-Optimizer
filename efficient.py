@@ -29,8 +29,6 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 24px; }
     .stTabs [data-baseweb="tab"] { height: 50px; background-color: #1E1E1E; border-radius: 4px; color: #FFF; }
     .stTabs [aria-selected="true"] { background-color: #4F8BF9; color: #FFF; }
-    
-    /* Force plot container to allow for full height expansion */
     .element-container iframe { height: auto !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -49,15 +47,8 @@ def fetch_data(tickers, period="2y"):
     try:
         data = yf.download(tickers, period=period, auto_adjust=False, threads=True)
         if isinstance(data.columns, pd.MultiIndex):
-            if 'Adj Close' in data.columns.get_level_values(0):
-                return data['Adj Close']
-            elif 'Close' in data.columns.get_level_values(0):
-                return data['Close']
-        elif 'Adj Close' in data.columns:
-            return data['Adj Close']
-        elif 'Close' in data.columns:
-            return data['Close']
-        return data.iloc[:, 0] if not data.empty else pd.DataFrame()
+            return data['Adj Close'] if 'Adj Close' in data.columns.get_level_values(0) else data['Close']
+        return data['Adj Close'] if 'Adj Close' in data.columns else data['Close']
     except: return pd.DataFrame()
 
 def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, risk_free_rate):
@@ -84,7 +75,7 @@ def main():
     # Data Loading
     if 'portfolio_df' not in st.session_state:
         data = {
-            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "IT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
+            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "KOTAKIT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
             "Shares": [31, 20, 20, 70, 123, 10, 7, 20, 20, 10, 10, 10, 12, 72, 100, 195, 155, 20, 14, 10],
             "Avg Cost": [37.86, 109.5, 176.18, 40.19, 27.4, 473.05, 351.99, 204.65, 177.22, 273.55, 152.04, 391.37, 175.32, 29.49, 22.38, 10.74, 13.53, 171.74, 524.11, 881.58],
             "Currency": ["INR"] * 20
@@ -126,11 +117,13 @@ def main():
     
     total_invested = (portfolio_clean['Shares'] * portfolio_clean['Avg Cost']).sum()
     pnl = total_value - total_invested
+    pnl_pct = (pnl/total_invested)*100
 
+    # --- PORTFOLIO DASHBOARD ---
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("💰 Portfolio Value", f"₹{total_value:,.0f}")
     c2.metric("💸 Invested Capital", f"₹{total_invested:,.0f}")
-    c3.metric("📈 Net P&L", f"₹{pnl:,.0f}", f"{(pnl/total_invested)*100:.2f}%")
+    c3.metric("📈 Net P&L", f"₹{pnl:,.0f}", f"{pnl_pct:.2f}%")
     
     log_returns = np.log(market_data / market_data.shift(1)).dropna()
     mean_returns = log_returns.mean()
@@ -138,8 +131,26 @@ def main():
     
     curr_weights = np.array([portfolio_clean[portfolio_clean['Ticker']==t]['Weight'].sum() for t in market_data.columns])
     curr_ret, curr_std, curr_sharpe = calculate_portfolio_metrics(curr_weights, mean_returns, cov_matrix, risk_free_rate)
-    
     c4.metric("⚡ True Sharpe Ratio", f"{curr_sharpe:.2f}")
+
+    # --- INTELLIGENT COMMENTARY ---
+    st.subheader("💡 Quant Intelligence Dashboard")
+    col_comm1, col_comm2 = st.columns(2)
+    with col_comm1:
+        if pnl_pct > 10:
+            st.success(f"**Performance:** Doing Good! 🚀 Your portfolio is outperforming capital costs by {pnl_pct:.1f}%.")
+        elif pnl_pct > 0:
+            st.info("**Performance:** Steady Gains. 📈 You are in the green, keep monitoring asset correlations.")
+        else:
+            st.warning("**Performance:** Under Pressure. 📉 Portfolio is currently in a drawdown.")
+
+    with col_comm2:
+        if curr_sharpe > 1.5:
+            st.success("**Risk-Adjusted:** Exceptional! 💎 You are getting high returns for every unit of risk.")
+        elif curr_sharpe > 0.5:
+            st.info("**Risk-Adjusted:** Decent. 📊 Your risk-to-reward ratio is within institutional norms.")
+        else:
+            st.error("**Risk-Adjusted:** High Volatility! ⚠️ Risk is exceeding returns. Check the Covariance matrix.")
 
     st.divider()
 
@@ -148,14 +159,14 @@ def main():
     # --- TAB 1: EFFICIENT FRONTIER ---
     with tab1:
         st.subheader("Efficient Frontier Optimization")
+        
         c_left, c_right = st.columns([3, 1])
         with c_left:
             num_portfolios = 2000
             n_assets = len(market_data.columns)
             results = np.zeros((3, num_portfolios))
             for i in range(num_portfolios):
-                w = np.random.random(n_assets)
-                w /= np.sum(w)
+                w = np.random.random(n_assets); w /= np.sum(w)
                 r, s, sh = calculate_portfolio_metrics(w, mean_returns, cov_matrix, risk_free_rate)
                 results[0,i], results[1,i], results[2,i] = s, r, sh
             
@@ -164,10 +175,8 @@ def main():
                                 template="plotly_dark", color_continuous_scale='Spectral_r')
             
             fig_ef.add_trace(go.Scatter(
-                x=[curr_std], y=[curr_ret], 
-                mode='markers+text',
-                text=["YOUR PORTFOLIO"],
-                textposition="top center",
+                x=[curr_std], y=[curr_ret], mode='markers+text',
+                text=["YOUR PORTFOLIO"], textposition="top center",
                 marker=dict(color='white', size=20, symbol='star', line=dict(color='red', width=3)),
                 name="Current Status"
             ))
@@ -179,63 +188,56 @@ def main():
             st.info(f"**Ann. Return:** {curr_ret*100:.2f}%")
             st.error(f"**Ann. Risk:** {curr_std*100:.2f}%")
 
-    # --- TAB 2: LEGIBLE COVARIANCE MATRIX (MAXIMIZED VIEW) ---
+    # --- TAB 2: MAXIMIZED COVARIANCE MATRIX ---
     with tab2:
         st.subheader("🔬 Asset Correlation Matrix")
-        st.caption("Detailed view of asset relationships. Colorbar removed for maximum clarity.")
         
         corr_matrix = log_returns.corr()
         num_assets = len(market_data.columns)
-        
-        # 55 pixels per asset ensures the cells are large and legible
-        dynamic_height = max(1100, num_assets * 55)
+        dynamic_height = max(1400, num_assets * 70)
         
         fig_corr = px.imshow(
-            corr_matrix, 
-            text_auto=".2f", 
-            aspect="equal", 
-            color_continuous_scale="RdBu_r", 
-            zmin=-1, zmax=1,
-            height=dynamic_height
+            corr_matrix, text_auto=".2f", aspect="equal", 
+            color_continuous_scale="RdBu_r", zmin=-1, zmax=1, height=dynamic_height
         )
         
         fig_corr.update_layout(
-            font=dict(size=16, color="white"), # Larger cell fonts
-            margin=dict(l=150, r=20, t=100, b=150), # Tighter right margin since colorbar is gone
-            xaxis_nticks=num_assets,
-            yaxis_nticks=num_assets,
-            template="plotly_dark",
-            coloraxis_showscale=False # REMOVES THE COLOR SIDE BAR
+            font=dict(size=18, color="white"), 
+            margin=dict(l=200, r=20, t=100, b=200),
+            xaxis_nticks=num_assets, yaxis_nticks=num_assets,
+            template="plotly_dark", coloraxis_showscale=False
         )
-        
-        fig_corr.update_xaxes(tickangle=-45, side="bottom", tickfont=dict(size=14))
-        fig_corr.update_yaxes(tickfont=dict(size=14))
-        
+        fig_corr.update_xaxes(tickangle=-45, side="bottom", tickfont=dict(size=18))
+        fig_corr.update_yaxes(tickfont=dict(size=18))
         st.plotly_chart(fig_corr, use_container_width=True)
-        
         
     # --- TAB 3: TORNADO STRESS TEST ---
     with tab3:
-        st.subheader("🌪️ Interactive Stress Testing")
+        st.subheader("🌪️ Risk Sensitivity Analysis")
+        
         col_inputs, col_chart = st.columns([1, 2])
         with col_inputs:
-            crash_pct = st.slider("📉 Crash %", -50, 0, -15)
-            bull_pct = st.slider("📈 Bull %", 0, 50, 15)
-            rate_hike = st.slider("🏦 Rate Hike Impact %", -20, 0, -5)
+            crash_pct = st.slider("📉 Market Crash %", -50, 0, -15)
+            bull_pct = st.slider("📈 Market Bull %", 0, 50, 15)
+            ai_boom = st.slider("🤖 Tech AI Boom %", 0, 100, 40)
 
         with col_chart:
-            beta = curr_std / 0.15
-            scenarios = {f"Crash ({crash_pct}%)": (crash_pct/100) * beta,
-                         f"Bull (+{bull_pct}%)": (bull_pct/100) * beta,
-                         "Rate Hike Shock": (rate_hike/100) * (beta * 1.2)}
+            # Beta calculation (Sensitivity)
+            beta = curr_std / 0.15 
+            scenarios = {
+                f"Market Crash ({crash_pct}%)": (crash_pct/100) * beta,
+                f"Market Bull (+{bull_pct}%)": (bull_pct/100) * beta,
+                f"Tech AI Boom (+{ai_boom}%)": (ai_boom/100) * (beta * 1.5) # AI boom has higher sensitivity
+            }
             impacts = [total_value * factor for factor in scenarios.values()]
-            fig_tor = go.Figure(go.Bar(x=impacts, y=list(scenarios.keys()), orientation='h',
-                                      marker_color=['#FF4B4B' if x < 0 else '#00CC96' for x in impacts],
-                                      text=[f"₹{x:,.0f}" for x in impacts], textposition="auto"))
-            fig_tor.update_layout(template="plotly_dark", height=400)
+            fig_tor = go.Figure(go.Bar(
+                x=impacts, y=list(scenarios.keys()), orientation='h',
+                marker_color=['#FF4B4B' if x < 0 else '#00CC96' for x in impacts],
+                text=[f"₹{x:,.0f}" for x in impacts], textposition="auto"
+            ))
+            fig_tor.update_layout(template="plotly_dark", height=500, xaxis_title="Potential P&L Impact (INR)")
             st.plotly_chart(fig_tor, use_container_width=True)
 
 if __name__ == "__main__":
     main()
     
-
