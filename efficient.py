@@ -4,29 +4,44 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from scipy.optimize import minimize
-import json
 
-# --- Page Configuration ---
+# --- Page Configuration (Must be first) ---
 st.set_page_config(
-    page_title="QuantPro Dashboard",
-    page_icon="📈",
+    page_title="QuantPro: Institutional Analytics",
+    page_icon="💎",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS ---
+# --- Custom Styling for "Standout" Look ---
 st.markdown("""
 <style>
-    .stApp { background-color: #000000; color: #FFFFFF; }
-    .stDataFrame { border: 1px solid #303030; border-radius: 5px; }
+    /* Dark Theme Optimization */
+    .stApp { background-color: #0E1117; color: #FAFAFA; }
+    
+    /* Metrics Styling */
+    div[data-testid="stMetric"] {
+        background-color: #1E1E1E;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #333;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    
+    /* Headers */
     h1, h2, h3 { font-family: 'Helvetica Neue', sans-serif; font-weight: 300; }
+    h1 { color: #4F8BF9; }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
+    .stTabs [data-baseweb="tab"] { height: 50px; white-space: pre-wrap; background-color: #1E1E1E; border-radius: 4px; color: #FFF; }
+    .stTabs [aria-selected="true"] { background-color: #4F8BF9; color: #FFF; }
 </style>
 """, unsafe_allow_html=True)
 
 # --- Helper Functions ---
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_currency_rate():
     try:
         data = yf.Ticker("INR=X").history(period="1d")
@@ -37,161 +52,240 @@ def fetch_data(tickers, period="2y"):
     if not tickers: return pd.DataFrame()
     try:
         data = yf.download(tickers, period=period, auto_adjust=False, threads=True)
-        return data['Adj Close'] if 'Adj Close' in data.columns else data['Close']
+        # Handle multi-level columns if multiple tickers
+        if isinstance(data.columns, pd.MultiIndex):
+            # Prioritize Adj Close, then Close
+            if 'Adj Close' in data.columns.get_level_values(0):
+                return data['Adj Close']
+            elif 'Close' in data.columns.get_level_values(0):
+                return data['Close']
+        # Handle single level columns
+        elif 'Adj Close' in data.columns:
+            return data['Adj Close']
+        elif 'Close' in data.columns:
+            return data['Close']
+        
+        # Fallback for single ticker
+        return data.iloc[:, 0] if not data.empty else pd.DataFrame()
     except: return pd.DataFrame()
 
-def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, risk_free_rate=0.065):
+def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, risk_free_rate):
     returns = np.sum(mean_returns * weights) * 252
     std_dev = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))) * np.sqrt(252)
-    # Corrected Sharpe: (Rp - Rf) / Sigma
     sharpe = (returns - risk_free_rate) / std_dev
     return returns, std_dev, sharpe
 
 # --- Main App ---
 
 def main():
-    st.title("📈 QuantPro: The Efficient Frontier Engine")
-    st.markdown("### *Institutional Grade Portfolio Analytics*")
+    st.title("💎 QuantPro: Portfolio Intelligence")
+    st.caption(" institutional grade risk analytics & optimization engine")
 
-    # --- Sidebar: Import & Settings ---
+    # --- Sidebar ---
     with st.sidebar:
-        st.header("📂 Data Import")
-        uploaded_file = st.file_uploader("Upload Portfolio (CSV, XLSX, JSON)", type=["csv", "xlsx", "json"])
+        st.header("⚙️ Configuration")
         
-        if uploaded_file is not None:
-            try:
-                if uploaded_file.name.endswith('.json'): up_df = pd.read_json(uploaded_file)
-                elif uploaded_file.name.endswith('.csv'): up_df = pd.read_csv(uploaded_file)
-                else: up_df = pd.read_excel(uploaded_file)
-                
-                if "Ticker" in up_df.columns:
-                    st.session_state.portfolio_df = up_df
-                    st.success("Portfolio Loaded!")
-                else: st.error("Missing 'Ticker' column.")
-            except Exception as e: st.error(f"Error: {e}")
-
+        # File Upload
+        uploaded_file = st.file_uploader("📂 Upload Portfolio (CSV/Excel)", type=["csv", "xlsx", "json"])
+        
         st.divider()
-        st.header("🌍 Risk Configuration")
-        risk_free_rate = st.number_input("Risk Free Rate (Rf)", value=0.065, step=0.005, format="%.3f")
-        st.info(f"Using {risk_free_rate*100}% Hurdle")
+        st.subheader("🌍 Macro Inputs")
+        risk_free_rate = st.number_input("Risk Free Rate (Rf)", value=0.065, step=0.005, format="%.3f", help="Current Indian 10y Bond Yield")
+        st.caption(f"Hurdle Rate: **{risk_free_rate*100:.1f}%**")
         
         usd_rate = get_currency_rate()
-        st.write(f"Live USD/INR: ₹{round(usd_rate, 2)}")
+        st.metric("USD/INR Rate", f"₹{usd_rate:.2f}")
 
-    # --- Section 1: Portfolio Management ---
+    # --- Data Loading ---
     if 'portfolio_df' not in st.session_state:
-        st.session_state.portfolio_df = pd.DataFrame({
-            "Ticker": ["TATASTEEL.NS", "SBIN.NS", "VEDL.NS", "GOLDBEES.NS"],
-            "Shares": [20.0, 10.0, 14.0, 155.0],
-            "Avg Cost": [171.74, 881.58, 524.11, 58.0],
-            "Currency": ["INR", "INR", "INR", "INR"]
-        })
+        # Default Data (Your provided portfolio)
+        data = {
+            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "KOTAKIT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
+            "Shares": [31, 20, 20, 70, 123, 10, 7, 20, 20, 10, 10, 10, 12, 72, 100, 195, 155, 20, 14, 10],
+            "Avg Cost": [37.86, 109.5, 176.18, 40.19, 27.4, 473.05, 351.99, 204.65, 177.22, 273.55, 152.04, 391.37, 175.32, 29.49, 22.38, 10.74, 13.53, 171.74, 524.11, 881.58],
+            "Currency": ["INR"] * 20
+        }
+        st.session_state.portfolio_df = pd.DataFrame(data)
 
-    edited_df = st.data_editor(st.session_state.portfolio_df, num_rows="dynamic", use_container_width=True)
-    portfolio_clean = edited_df[edited_df["Ticker"].str.len() > 1].copy()
+    # Handle Upload
+    if uploaded_file:
+        try:
+            if uploaded_file.name.endswith('.csv'): df = pd.read_csv(uploaded_file)
+            elif uploaded_file.name.endswith('.json'): df = pd.read_json(uploaded_file)
+            else: df = pd.read_excel(uploaded_file)
+            st.session_state.portfolio_df = df
+            st.sidebar.success("✅ Portfolio Loaded")
+        except: st.sidebar.error("❌ Invalid File")
 
-    if not portfolio_clean.empty:
-        tickers = portfolio_clean['Ticker'].unique().tolist()
+    # Display Data Editor
+    with st.expander("💼 View / Edit Portfolio Holdings", expanded=False):
+        edited_df = st.data_editor(st.session_state.portfolio_df, num_rows="dynamic", use_container_width=True)
+
+    # --- Processing ---
+    portfolio_clean = edited_df.copy()
+    if portfolio_clean.empty: st.stop()
+
+    tickers = portfolio_clean['Ticker'].unique().tolist()
+    
+    with st.spinner("🚀 Crunching Market Data..."):
         market_data = fetch_data(tickers)
+    
+    if market_data.empty:
+        st.error("Could not fetch market data. Check ticker symbols.")
+        st.stop()
+
+    # Calculate Current Value & Weights
+    current_prices = market_data.iloc[-1]
+    
+    def get_current_val(row):
+        price = current_prices.get(row['Ticker'], 0)
+        val = price * row['Shares']
+        return val * usd_rate if str(row.get('Currency')).upper() == 'USD' else val
+
+    portfolio_clean['Current_Value'] = portfolio_clean.apply(get_current_val, axis=1)
+    total_value = portfolio_clean['Current_Value'].sum()
+    portfolio_clean['Weight'] = portfolio_clean['Current_Value'] / total_value
+    
+    total_invested = (portfolio_clean['Shares'] * portfolio_clean['Avg Cost']).sum()
+    pnl = total_value - total_invested
+
+    # --- Top Level Metrics ---
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("💰 Portfolio Value", f"₹{total_value:,.0f}")
+    c2.metric("💸 Invested Capital", f"₹{total_invested:,.0f}")
+    c3.metric("📈 Net P&L", f"₹{pnl:,.0f}", f"{(pnl/total_invested)*100:.2f}%")
+    
+    # --- Analytics Engine ---
+    log_returns = np.log(market_data / market_data.shift(1)).dropna()
+    mean_returns = log_returns.mean()
+    cov_matrix = log_returns.cov()
+    
+    # Current Stats
+    curr_weights = np.array([portfolio_clean[portfolio_clean['Ticker']==t]['Weight'].sum() for t in market_data.columns])
+    curr_ret, curr_std, curr_sharpe = calculate_portfolio_metrics(curr_weights, mean_returns, cov_matrix, risk_free_rate)
+    
+    c4.metric("⚡ True Sharpe Ratio", f"{curr_sharpe:.2f}", help=f"Adjusted for {risk_free_rate*100}% Risk-Free Rate")
+
+    st.divider()
+
+    # --- TABS INTERFACE ---
+    tab1, tab2, tab3 = st.tabs(["🚀 Efficient Frontier", "🔬 Covariance Matrix", "🌪️ Stress Test (Tornado)"])
+
+    # --- TAB 1: EFFICIENT FRONTIER ---
+    with tab1:
+        c_left, c_right = st.columns([3, 1])
         
-        if not market_data.empty:
-            # Pricing & Weights
-            current_prices = market_data.iloc[-1]
-            vals = []
-            for _, row in portfolio_clean.iterrows():
-                p = current_prices[row['Ticker']] if row['Ticker'] in current_prices else 0
-                v = p * row['Shares']
-                vals.append(v * usd_rate if row['Currency'] == 'USD' else v)
-            
-            portfolio_clean['Current_Value'] = vals
-            portfolio_clean['Weight'] = portfolio_clean['Current_Value'] / portfolio_clean['Current_Value'].sum()
-
-            # Absolute Performance
-            total_inv = (portfolio_clean['Shares'] * portfolio_clean['Avg Cost']).sum()
-            total_curr = portfolio_clean['Current_Value'].sum()
-            
-            st.divider()
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Invested Capital", f"₹{total_inv:,.0f}")
-            m2.metric("Portfolio Value", f"₹{total_curr:,.0f}")
-            m3.metric("Absolute P/L", f"₹{total_curr-total_inv:,.0f}", f"{((total_curr-total_inv)/total_inv)*100:.2f}%")
-
-            # --- Section 2: Risk Matrix ---
-            st.subheader("🔬 Risk Engine: Correlation Matrix")
-            log_returns = np.log(market_data / market_data.shift(1)).dropna()
-            corr_matrix = log_returns.corr()
-            fig_corr = px.imshow(corr_matrix, text_auto=".2f", color_continuous_scale="RdBu_r", aspect="auto")
-            st.plotly_chart(fig_corr, use_container_width=True)
-
-            # --- Section 3: Optimization ---
-            st.subheader("🚀 Efficient Frontier & Sharpe Analysis")
-            mean_returns = log_returns.mean()
-            cov_matrix = log_returns.cov()
-            
-            # Simulation
+        with c_left:
+            # Monte Carlo Simulation
             num_portfolios = 3000
-            n_assets = len(tickers)
+            n_assets = len(market_data.columns)
             results = np.zeros((3, num_portfolios))
+            
             for i in range(num_portfolios):
                 w = np.random.random(n_assets)
                 w /= np.sum(w)
-                pret, pstd, psharpe = calculate_portfolio_metrics(w, mean_returns, cov_matrix, risk_free_rate)
-                results[0,i], results[1,i], results[2,i] = pstd, pret, psharpe
-
-            # Current State
-            curr_w = np.array([portfolio_clean.groupby('Ticker')['Weight'].sum()[t] for t in tickers])
-            c_ret, c_std, c_sharpe = calculate_portfolio_metrics(curr_w, mean_returns, cov_matrix, risk_free_rate)
-
-            c_graph, c_stats = st.columns([2, 1])
-            with c_graph:
-                fig_ef = px.scatter(x=results[0,:], y=results[1,:], color=results[2,:], 
-                                    labels={'x': 'Volatility', 'y': 'Return', 'color': 'Sharpe'},
-                                    color_continuous_scale='Viridis', template="plotly_dark")
-                fig_ef.add_trace(go.Scatter(x=[c_std], y=[c_ret], mode='markers+text', 
-                                            marker=dict(color='red', size=15, symbol='star'), text=["YOU"]))
-                st.plotly_chart(fig_ef, use_container_width=True)
+                r, s, sh = calculate_portfolio_metrics(w, mean_returns, cov_matrix, risk_free_rate)
+                results[0,i], results[1,i], results[2,i] = s, r, sh
             
-            with c_stats:
-                st.metric("True Sharpe Ratio", f"{c_sharpe:.2f}")
-                st.metric("Annualized Risk", f"{c_std*100:.2f}%")
-                st.write("---")
-                st.caption(f"Calculated using {risk_free_rate*100}% risk-free rate hurdle.")
+            # Plot
+            fig_ef = px.scatter(
+                x=results[0,:], y=results[1,:], color=results[2,:],
+                labels={'x': 'Annualized Risk (Volatility)', 'y': 'Annualized Return', 'color': 'Sharpe'},
+                title="Efficient Frontier Optimization",
+                color_continuous_scale='Spectral_r', template="plotly_dark"
+            )
+            # Add Current Portfolio Star
+            fig_ef.add_trace(go.Scatter(
+                x=[curr_std], y=[curr_ret], mode='markers+text',
+                marker=dict(color='white', size=18, symbol='star', line=dict(color='red', width=2)),
+                text=["YOU"], textposition="top center", name="Current Portfolio"
+            ))
+            st.plotly_chart(fig_ef, use_container_width=True)
 
-            # --- Section 4: Tornado Charts (Macro Sensitivity) ---
-            st.subheader("🌪️ Macro Sensitivity (Tornado Analysis)")
+        with c_right:
+            st.markdown("### 📊 Metrics")
+            st.write("Performance stats based on last 2 years of daily data.")
             
-            # Simple Beta Estimation (Relative to Nifty 50 vol of ~15%)
-            market_vol = 0.15
-            implied_beta = c_std / market_vol
+            st.info(f"**Annualized Return:** {curr_ret*100:.2f}%")
+            st.error(f"**Annualized Risk:** {curr_std*100:.2f}%")
+            
+            st.markdown("#### The Formula")
+            st.latex(r"Sharpe = \frac{R_p - R_f}{\sigma_p}")
+            st.caption(f"Where $R_f$ (Risk Free) = {risk_free_rate*100}%")
+            
+            st.markdown("---")
+            if curr_sharpe > 1.0:
+                st.success("✅ **Great!** You are generating solid excess returns.")
+            elif curr_sharpe > 0.5:
+                st.warning("⚠️ **Good**, but room for optimization.")
+            else:
+                st.error("❌ **Risk Alert:** Return is not justifying the volatility.")
+
+    # --- TAB 2: COVARIANCE MATRIX ---
+    with tab2:
+        st.subheader("🔍 Asset Correlation Heatmap")
+        st.caption("Red = Assets move together (High Risk). Blue = Assets move opposite (Hedging).")
+        
+        corr_matrix = log_returns.corr()
+        
+        # Dynamic height based on number of assets
+        dynamic_height = max(600, len(market_data.columns) * 30)
+        
+        fig_corr = px.imshow(
+            corr_matrix, 
+            text_auto=".2f", 
+            aspect="auto", 
+            color_continuous_scale="RdBu_r", 
+            zmin=-1, zmax=1,
+            height=dynamic_height
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+
+    # --- TAB 3: TORNADO STRESS TEST ---
+    with tab3:
+        st.subheader("🌪️ Interactive Stress Testing")
+        st.caption("Adjust the sliders to simulate market scenarios and see P&L Impact.")
+        
+        col_inputs, col_chart = st.columns([1, 2])
+        
+        with col_inputs:
+            st.markdown("#### 🎛️ Scenario Inputs")
+            crash_pct = st.slider("📉 Market Crash Severity", min_value=-50, max_value=0, value=-15, step=5)
+            bull_pct = st.slider("📈 Bull Run Magnitude", min_value=0, max_value=50, value=15, step=5)
+            rate_hike_pct = st.slider("🏦 Rate Hike Impact (Banks/Auto)", min_value=-20, max_value=0, value=-5, step=1)
+            tech_boom_pct = st.slider("🤖 Tech/AI Rally", min_value=0, max_value=30, value=10, step=2)
+
+        with col_chart:
+            # Calculate Beta (approximate using Portfolio Vol / Market Vol 15%)
+            beta = curr_std / 0.15
             
             scenarios = {
-                "Market Crash (-15%)": -0.15 * implied_beta,
-                "Bull Run (+15%)": 0.15 * implied_beta,
-                "Interest Rate Hike": -0.05 * (implied_beta * 1.3),
-                "Sector Rotation (Value)": -0.04 * implied_beta,
-                "Budget Rally": 0.08 * implied_beta
+                f"Market Crash ({crash_pct}%)": (crash_pct/100) * beta,
+                f"Bull Run (+{bull_pct}%)": (bull_pct/100) * beta,
+                "Interest Rate Hike Shock": (rate_hike_pct/100) * (beta * 1.2), # Banks hurt more
+                "Tech/Innovation Boom": (tech_boom_pct/100) * (beta * 0.9)
             }
             
-            impact_vals = [total_curr * move for move in scenarios.values()]
-            scenario_names = list(scenarios.keys())
+            impacts = [total_value * factor for factor in scenarios.values()]
+            names = list(scenarios.keys())
+            colors = ['#FF4B4B' if x < 0 else '#00CC96' for x in impacts]
             
-            fig_tornado = go.Figure(go.Bar(
-                x=impact_vals,
-                y=scenario_names,
-                orientation='h',
-                marker_color=['red' if x < 0 else 'green' for x in impact_vals],
-                text=[f"₹{x:,.0f}" for x in impact_vals],
+            fig_tor = go.Figure(go.Bar(
+                x=impacts, y=names, orientation='h',
+                marker_color=colors,
+                text=[f"₹{x:,.0f}" for x in impacts],
                 textposition="auto"
             ))
-            fig_tornado.update_layout(
-                title="Estimated Portfolio P&L Impact per Scenario",
-                xaxis_title="Potential INR Impact",
+            
+            fig_tor.update_layout(
+                title="Projected P&L Impact (INR)",
+                xaxis_title="Profit / Loss",
                 template="plotly_dark",
-                yaxis={'categoryorder':'total ascending'}
+                yaxis={'categoryorder':'total ascending'},
+                height=400
             )
-            st.plotly_chart(fig_tornado, use_container_width=True)
+            st.plotly_chart(fig_tor, use_container_width=True)
 
 if __name__ == "__main__":
     main()
     
-
