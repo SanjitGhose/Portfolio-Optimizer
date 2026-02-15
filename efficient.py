@@ -81,7 +81,7 @@ def main():
     # Data Loading
     if 'portfolio_df' not in st.session_state:
         data = {
-            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "IT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
+            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "KOTAKIT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
             "Shares": [31, 20, 20, 70, 123, 10, 7, 20, 20, 10, 10, 10, 12, 72, 100, 195, 155, 20, 14, 10],
             "Avg Cost": [37.86, 109.5, 176.18, 40.19, 27.4, 473.05, 351.99, 204.65, 177.22, 273.55, 152.04, 391.37, 175.32, 29.49, 22.38, 10.74, 13.53, 171.74, 524.11, 881.58],
             "Currency": ["INR"] * 20
@@ -142,8 +142,9 @@ def main():
 
     tab1, tab2, tab3 = st.tabs(["🚀 Efficient Frontier", "🔬 Covariance Matrix", "🌪️ Stress Test"])
 
-    # TAB 1: EFFICIENT FRONTIER
+    # --- TAB 1: EFFICIENT FRONTIER (STAR FIX) ---
     with tab1:
+        st.subheader("Efficient Frontier Optimization")
         c_left, c_right = st.columns([3, 1])
         with c_left:
             num_portfolios = 2000
@@ -156,10 +157,18 @@ def main():
                 results[0,i], results[1,i], results[2,i] = s, r, sh
             
             fig_ef = px.scatter(x=results[0,:], y=results[1,:], color=results[2,:],
-                                labels={'x': 'Risk', 'y': 'Return', 'color': 'Sharpe'},
+                                labels={'x': 'Annualized Risk', 'y': 'Annualized Return', 'color': 'Sharpe'},
                                 template="plotly_dark", color_continuous_scale='Spectral_r')
-            fig_ef.add_trace(go.Scatter(x=[curr_std], y=[curr_ret], mode='markers',
-                                        marker=dict(color='white', size=15, symbol='star')))
+            
+            # STAR FIX: Added high contrast 'star' on top layer
+            fig_ef.add_trace(go.Scatter(
+                x=[curr_std], y=[curr_ret], 
+                mode='markers+text',
+                text=["YOUR PORTFOLIO"],
+                textposition="top center",
+                marker=dict(color='white', size=20, symbol='star', line=dict(color='red', width=3)),
+                name="Current Status"
+            ))
             st.plotly_chart(fig_ef, use_container_width=True)
             
 
@@ -169,12 +178,16 @@ def main():
             st.info(f"**Ann. Return:** {curr_ret*100:.2f}%")
             st.error(f"**Ann. Risk:** {curr_std*100:.2f}%")
 
-    # TAB 2: LEGIBLE COVARIANCE MATRIX
+    # --- TAB 2: LEGIBLE COVARIANCE MATRIX (LEGIBILITY FIX) ---
     with tab2:
         st.subheader("🔬 Asset Correlation Matrix")
+        st.caption("Detailed view of asset relationships. Scroll to see all holdings.")
+        
         corr_matrix = log_returns.corr()
         num_assets = len(market_data.columns)
-        dynamic_height = max(600, num_assets * 35)
+        
+        # INCREASED DYNAMIC HEIGHT for legibility
+        dynamic_height = max(800, num_assets * 40)
         
         fig_corr = px.imshow(
             corr_matrix, 
@@ -184,17 +197,23 @@ def main():
             zmin=-1, zmax=1,
             height=dynamic_height
         )
+        
         fig_corr.update_layout(
-            font=dict(size=10),
-            margin=dict(l=100, r=20, t=50, b=100),
+            font=dict(size=12, color="white"),
+            margin=dict(l=150, r=50, t=100, b=150), # Large margins for full ticker names
             xaxis_nticks=num_assets,
-            yaxis_nticks=num_assets
+            yaxis_nticks=num_assets,
+            template="plotly_dark"
         )
-        fig_corr.update_xaxes(tickangle=-45, side="bottom")
+        
+        # Rotated and enlarged labels
+        fig_corr.update_xaxes(tickangle=-45, side="bottom", tickfont=dict(size=12))
+        fig_corr.update_yaxes(tickfont=dict(size=12))
+        
         st.plotly_chart(fig_corr, use_container_width=True)
         
 
-    # TAB 3: TORNADO STRESS TEST
+    # --- TAB 3: TORNADO STRESS TEST ---
     with tab3:
         st.subheader("🌪️ Interactive Stress Testing")
         col_inputs, col_chart = st.columns([1, 2])
@@ -218,5 +237,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-
