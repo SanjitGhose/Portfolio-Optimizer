@@ -460,17 +460,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Quick stats banner
-    col_banner1, col_banner2, col_banner3, col_banner4 = st.columns(4)
-    with col_banner1:
-        st.metric("📊 Assets Tracked", str(len(st.session_state.portfolio_df)))
-    with col_banner2:
-        st.metric("🌐 Data Source", "Yahoo Finance")
-    with col_banner3:
-        st.metric("⏱️ Refresh Rate", "Real-time")
-    with col_banner4:
-        st.metric("🔒 Security", "Encrypted")
-    
     # Sidebar Configuration
     with st.sidebar:
         st.header("⚙️ Configuration Panel")
@@ -606,6 +595,19 @@ def main():
         st.session_state.first_load = True
     else:
         st.session_state.first_load = False
+
+    # Quick stats banner (after portfolio initialization)
+    col_banner1, col_banner2, col_banner3, col_banner4 = st.columns(4)
+    with col_banner1:
+        st.metric("📊 Assets in Portfolio", str(len(st.session_state.portfolio_df)), help="Number of positions tracked")
+    with col_banner2:
+        st.metric("🌐 Data Source", "Yahoo Finance", help="Real-time market data provider")
+    with col_banner3:
+        st.metric("📈 Analysis Period", "2 Years", help="Historical data used for calculations")
+    with col_banner4:
+        st.metric("🔄 Status", "Live", delta="Connected", help="System operational status")
+    
+    st.markdown("---")
 
     # Portfolio Holdings Editor
     with st.expander("💼 View / Edit Portfolio Holdings", expanded=False):
