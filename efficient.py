@@ -15,28 +15,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Custom CSS ---
+# --- Custom CSS for Institutional Look ---
 st.markdown("""
 <style>
-    .metric-card {
-        background-color: #0E1117;
-        border: 1px solid #303030;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .stApp {
-        background-color: #000000;
-        color: #FFFFFF;
-    }
-    h1, h2, h3 {
-        font-family: 'Helvetica Neue', sans-serif;
-        font-weight: 300;
-    }
-    .stDataFrame {
-        border: 1px solid #303030;
-        border-radius: 5px;
-    }
+    .stApp { background-color: #000000; color: #FFFFFF; }
+    .stDataFrame { border: 1px solid #303030; border-radius: 5px; }
+    h1, h2, h3 { font-family: 'Helvetica Neue', sans-serif; font-weight: 300; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -46,44 +30,33 @@ st.markdown("""
 def get_currency_rate():
     try:
         data = yf.Ticker("INR=X").history(period="1d")
-        if not data.empty:
-            return data['Close'].iloc[-1]
-        return 84.0 
-    except:
-        return 84.0 
+        return data['Close'].iloc[-1] if not data.empty else 84.0
+    except: return 84.0 
 
 def fetch_data(tickers, period="2y"):
-    if not tickers:
-        return pd.DataFrame()
+    if not tickers: return pd.DataFrame()
     try:
         data = yf.download(tickers, period=period, auto_adjust=False, threads=True)
-        if 'Adj Close' in data.columns:
-            return data['Adj Close']
-        elif 'Close' in data.columns:
-            return data['Close']
-        return data.iloc[:, 0] if not data.empty else pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        return pd.DataFrame()
+        return data['Adj Close'] if 'Adj Close' in data.columns else data['Close']
+    except: return pd.DataFrame()
 
-# UPDATED: Included Risk-Free Rate of 6.5%
 def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, risk_free_rate=0.065):
     returns = np.sum(mean_returns * weights) * 252
     std_dev = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))) * np.sqrt(252)
-    # Correct Sharpe Formula: (Rp - Rf) / Sigma
+    # Corrected Sharpe Ratio: Subtracting the 6.5% Hurdle
     sharpe = (returns - risk_free_rate) / std_dev
     return returns, std_dev, sharpe
 
-# --- Main App ---
+# --- Main App Logic ---
 
 def main():
     st.title("📈 QuantPro: The Efficient Frontier Engine")
     st.markdown("### *Institutional Grade Portfolio Analytics*")
 
-    # --- Sidebar: File Upload & Macro Settings ---
+    # --- Sidebar: Document Import & Macro Settings ---
     with st.sidebar:
         st.header("📂 Data Import")
-        uploaded_file = st.file_uploader("Upload Portfolio (CSV, Excel, or JSON)", type=["csv", "xlsx", "json"])
+        uploaded_file = st.file_uploader("Upload Portfolio (CSV, XLSX, JSON)", type=["csv", "xlsx", "json"])
         
         if uploaded_file is not None:
             try:
@@ -94,159 +67,119 @@ def main():
                 else:
                     up_df = pd.read_excel(uploaded_file)
                 
-                # Standardizing column names for the app
-                required_cols = ["Ticker", "Shares", "Avg Cost"]
-                if all(col in up_df.columns for col in required_cols):
-                    st.session_state.portfolio_df = up_df[required_cols + (["Currency"] if "Currency" in up_df.columns else [])]
-                    st.success("File Loaded!")
+                # Validation: Ensuring basic columns exist
+                if "Ticker" in up_df.columns and "Shares" in up_df.columns:
+                    st.session_state.portfolio_df = up_df
+                    st.success("Portfolio Uploaded!")
                 else:
-                    st.error("File must contain: Ticker, Shares, Avg Cost")
+                    st.error("Missing 'Ticker' or 'Shares' columns.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Upload Error: {e}")
 
         st.divider()
-        st.header("🌍 Macro Intelligence")
-        country = st.selectbox("Select Your Region", ["India", "USA", "Global"])
+        st.header("🌍 Risk Settings")
+        # Defaulting to your specified 6.5% Risk-Free Rate
         risk_free_rate = st.number_input("Risk Free Rate (Rf)", value=0.065, step=0.005, format="%.3f")
+        st.info(f"Using {risk_free_rate*100}% Hurdle Rate")
         
-        st.divider()
-        st.write("Current USD/INR Rate: ₹" + str(round(get_currency_rate(), 2)))
+        usd_rate = get_currency_rate()
+        st.write(f"Live USD/INR: ₹{round(usd_rate, 2)}")
 
-    # --- Section 1: Bulk Portfolio Input ---
-    st.subheader("💼 Portfolio Management")
+    # --- Section 1: Portfolio Input ---
+    st.subheader("💼 Portfolio Composition")
 
     if 'portfolio_df' not in st.session_state:
-        data = {
+        st.session_state.portfolio_df = pd.DataFrame({
             "Ticker": ["TATASTEEL.NS", "SBIN.NS", "VEDL.NS", "GOLDBEES.NS"],
             "Shares": [20.0, 10.0, 14.0, 155.0],
             "Avg Cost": [171.74, 881.58, 524.11, 58.0],
             "Currency": ["INR", "INR", "INR", "INR"]
-        }
-        st.session_state.portfolio_df = pd.DataFrame(data)
+        })
 
-    edited_df = st.data_editor(
-        st.session_state.portfolio_df,
-        num_rows="dynamic",
-        use_container_width=True,
-        column_config={
-            "Ticker": st.column_config.TextColumn("Ticker Symbol", validate="^[A-Za-z0-9\-\.]+$"),
-            "Shares": st.column_config.NumberColumn("Shares Held", min_value=0.0, format="%.2f"),
-            "Avg Cost": st.column_config.NumberColumn("Avg Buy Price", min_value=0.0, format="₹%.2f"),
-            "Currency": st.column_config.SelectboxColumn("Currency", options=["INR", "USD"], required=True)
-        },
-        key="portfolio_editor"
-    )
-
+    edited_df = st.data_editor(st.session_state.portfolio_df, num_rows="dynamic", use_container_width=True)
     portfolio_clean = edited_df[edited_df["Ticker"].str.len() > 1].copy()
-    if portfolio_clean.empty:
-        st.warning("⚠️ Please add stocks or upload a file.")
-        st.stop()
 
-    tickers_list = portfolio_clean['Ticker'].unique().tolist()
-    usd_rate = get_currency_rate()
-    
-    def calculate_invested(row):
-        val = row['Shares'] * row['Avg Cost']
-        return val * usd_rate if row['Currency'] == 'USD' else val
-
-    portfolio_clean['Invested_INR'] = portfolio_clean.apply(calculate_invested, axis=1)
-
-    # --- Section 2: Data Fetching ---
-    if len(tickers_list) > 0:
-        market_data = fetch_data(tickers_list)
-        if market_data.empty:
-            st.error("❌ No data found. Check ticker formats (e.g., RELIANCE.NS).")
-            st.stop()
-
-        if isinstance(market_data, pd.Series):
-            market_data = market_data.to_frame(name=tickers_list[0])
-
-        current_prices = market_data.iloc[-1]
-        current_vals = []
-        for _, row in portfolio_clean.iterrows():
-            ticker = row['Ticker']
-            price = current_prices[ticker] if ticker in current_prices else 0
-            val = price * row['Shares']
-            val = val * usd_rate if row['Currency'] == 'USD' else val
-            current_vals.append(val)
+    if not portfolio_clean.empty:
+        tickers = portfolio_clean['Ticker'].unique().tolist()
+        market_data = fetch_data(tickers)
         
-        portfolio_clean['Current_Value_INR'] = current_vals
-        portfolio_clean['Weight'] = portfolio_clean['Current_Value_INR'] / portfolio_clean['Current_Value_INR'].sum()
+        if not market_data.empty:
+            # Re-calculate Market Weights
+            current_prices = market_data.iloc[-1]
+            vals = []
+            for _, row in portfolio_clean.iterrows():
+                price = current_prices[row['Ticker']] if row['Ticker'] in current_prices else 0
+                v = price * row['Shares']
+                vals.append(v * usd_rate if row['Currency'] == 'USD' else v)
+            
+            portfolio_clean['Current_Value'] = vals
+            portfolio_clean['Weight'] = portfolio_clean['Current_Value'] / portfolio_clean['Current_Value'].sum()
 
-        # --- Section 3: Performance Metrics ---
-        st.divider()
-        c1, c2, c3 = st.columns(3)
-        total_inv = portfolio_clean['Invested_INR'].sum()
-        total_curr = portfolio_clean['Current_Value_INR'].sum()
-        pnl_val = total_curr - total_inv
-        pnl_pct = (pnl_val / total_inv) * 100 if total_inv > 0 else 0
+            # PnL Summary
+            total_inv = (portfolio_clean['Shares'] * portfolio_clean['Avg Cost']).sum()
+            total_curr = portfolio_clean['Current_Value'].sum()
+            
+            st.divider()
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Invested Capital", f"₹{total_inv:,.0f}")
+            m2.metric("Portfolio Value", f"₹{total_curr:,.0f}")
+            m3.metric("Absolute P/L", f"₹{total_curr-total_inv:,.0f}", f"{((total_curr-total_inv)/total_inv)*100:.2f}%")
 
-        c1.metric("Total Invested", f"₹{total_inv:,.0f}")
-        c2.metric("Current Value", f"₹{total_curr:,.0f}")
-        c3.metric("Net P/L", f"₹{pnl_val:,.0f}", f"{pnl_pct:.2f}%")
-
-        # --- Section 4: Risk Analytics ---
-        if len(tickers_list) > 1:
-            st.subheader("🔬 Deep Risk Analysis")
+            # --- Section 2: Correlation Heatmap ---
+            st.subheader("🔬 Risk Engine: Correlation Matrix")
             log_returns = np.log(market_data / market_data.shift(1)).dropna()
-            log_returns = log_returns.loc[:, ~log_returns.columns.duplicated()]
+            corr_matrix = log_returns.corr()
+            
+            fig_corr = px.imshow(
+                corr_matrix, text_auto=".2f", aspect="auto",
+                color_continuous_scale="RdBu_r", zmin=-1, zmax=1,
+                title="Asset Correlation (Interdependency Map)"
+            )
+            st.plotly_chart(fig_corr, use_container_width=True)
+
+            # --- Section 3: Efficient Frontier ---
+            st.subheader("🚀 Efficient Frontier Optimization")
+            col_graph, col_stats = st.columns([2, 1])
+
             mean_returns = log_returns.mean()
             cov_matrix = log_returns.cov()
+            
+            num_portfolios = 3000
+            n_assets = len(tickers)
+            results = np.zeros((3, num_portfolios))
 
-            # B. Efficient Frontier
-            st.subheader("🚀 Efficient Frontier")
-            col_graph, col_controls = st.columns([2, 1])
+            for i in range(num_portfolios):
+                w = np.random.random(n_assets)
+                w /= np.sum(w)
+                pret, pstd, psharpe = calculate_portfolio_metrics(w, mean_returns, cov_matrix, risk_free_rate)
+                results[0,i], results[1,i], results[2,i] = pstd, pret, psharpe
+
+            # Current Portfolio Position
+            curr_w = np.array([portfolio_clean.groupby('Ticker')['Weight'].sum()[t] for t in tickers])
+            c_ret, c_std, c_sharpe = calculate_portfolio_metrics(curr_w, mean_returns, cov_matrix, risk_free_rate)
 
             with col_graph:
-                num_portfolios = 3000
-                results = np.zeros((3, num_portfolios))
-                unique_tickers = log_returns.columns.tolist()
-                n_assets = len(unique_tickers)
-
-                for i in range(num_portfolios):
-                    weights = np.random.random(n_assets)
-                    weights /= np.sum(weights)
-                    pret, pstd, psharpe = calculate_portfolio_metrics(weights, mean_returns, cov_matrix, risk_free_rate)
-                    results[0,i] = pstd
-                    results[1,i] = pret
-                    results[2,i] = psharpe
-
-                grouped_weights = portfolio_clean.groupby('Ticker')['Weight'].sum()
-                current_w_array = np.array([grouped_weights.get(t, 0) for t in unique_tickers])
-                cur_ret, cur_std, cur_sharpe = calculate_portfolio_metrics(current_w_array, mean_returns, cov_matrix, risk_free_rate)
-
-                fig_ef = go.Figure()
+                fig_ef = px.scatter(
+                    x=results[0,:], y=results[1,:], color=results[2,:],
+                    labels={'x': 'Risk (Annual Vol)', 'y': 'Return (Annualized)', 'color': 'Sharpe'},
+                    color_continuous_scale='Viridis', template="plotly_dark"
+                )
                 fig_ef.add_trace(go.Scatter(
-                    x=results[0,:], y=results[1,:], mode='markers',
-                    marker=dict(color=results[2,:], colorscale='Viridis', size=4, showscale=True, colorbar=dict(title=f"Sharpe (Rf={risk_free_rate*100}%)")),
-                    name='Simulated'
-                ))
-                fig_ef.add_trace(go.Scatter(
-                    x=[cur_std], y=[cur_ret], mode='markers+text',
+                    x=[c_std], y=[c_ret], mode='markers+text',
                     marker=dict(color='red', size=15, symbol='star'),
-                    text=["YOU"], textposition="top center", name='Current'
+                    text=["YOUR PORTFOLIO"], textposition="top center", name="Current"
                 ))
-                fig_ef.update_layout(title="Risk vs Return Optimization", xaxis_title="Risk (Annual Vol)", yaxis_title="Return (Annualized)", template="plotly_dark", height=500)
                 st.plotly_chart(fig_ef, use_container_width=True)
 
-            with col_controls:
-                st.markdown("### 🎛️ Optimization Metrics")
-                st.metric("Portfolio Sharpe Ratio", f"{cur_sharpe:.2f}")
-                st.metric("Annualized Volatility", f"{cur_std*100:.2f}%")
-                st.info(f"The Sharpe ratio is now correctly calculated by subtracting the {risk_free_rate*100}% Risk-Free Rate from your returns.")
-
-            # C. Tornado Sensitivity
-            st.subheader("🌪️ Macro Sensitivity")
-            implied_beta = cur_std / 0.15 
-            scenarios = {"Market Crash (-10%)": -0.10 * implied_beta, "Bull Run (+10%)": 0.10 * implied_beta, "Rate Hike": -0.05 * (implied_beta * 1.2)}
-            impacts = [total_curr * move for move in scenarios.values()]
-            fig_tor = go.Figure(go.Bar(x=impacts, y=list(scenarios.keys()), orientation='h', marker_color=['red' if x < 0 else 'green' for x in impacts], text=[f"₹{x:,.0f}" for x in impacts], textposition="auto"))
-            fig_tor.update_layout(template="plotly_dark")
-            st.plotly_chart(fig_tor, use_container_width=True)
-
-    st.divider()
-    json_data = portfolio_clean.to_json(orient="records")
-    st.download_button("💾 Save Portfolio", json_data, "my_portfolio.json", "application/json")
+            with col_stats:
+                st.markdown("#### Portfolio Health")
+                st.metric("Risk-Adjusted Sharpe", f"{c_sharpe:.2f}")
+                st.metric("Projected Annual Volatility", f"{c_std*100:.2f}%")
+                st.metric("Projected Annual Return", f"{c_ret*100:.2f}%")
+                
+                st.write("---")
+                st.caption(f"Note: Sharpe ratio accounts for a {risk_free_rate*100}% risk-free hurdle.")
 
 if __name__ == "__main__":
     main()
+                    
