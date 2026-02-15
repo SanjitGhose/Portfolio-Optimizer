@@ -223,23 +223,38 @@ def main():
 
     # --- TAB 2: COVARIANCE MATRIX ---
     with tab2:
-        st.subheader("🔍 Asset Correlation Heatmap")
-        st.caption("Red = Assets move together (High Risk). Blue = Assets move opposite (Hedging).")
-        
-        corr_matrix = log_returns.corr()
-        
-        # Dynamic height based on number of assets
-        dynamic_height = max(600, len(market_data.columns) * 30)
-        
-        fig_corr = px.imshow(
-            corr_matrix, 
-            text_auto=".2f", 
-            aspect="auto", 
-            color_continuous_scale="RdBu_r", 
-            zmin=-1, zmax=1,
-            height=dynamic_height
-        )
-        st.plotly_chart(fig_corr, use_container_width=True)
+    st.subheader("🔬 Asset Correlation Matrix")
+    st.caption("A larger scale ensures labels don't overlap. Red = High Correlation, Blue = Diversification.")
+    
+    # Calculate Correlation
+    corr_matrix = returns.corr()
+    
+    # --- DYNAMIC LEGIBILITY UPDATES ---
+    # 1. Calculate dynamic height (approx 35 pixels per ticker)
+    num_tickers = len(tickers)
+    dynamic_height = max(500, num_tickers * 35) 
+    
+    fig_corr = px.imshow(
+        corr_matrix, 
+        text_auto=".2f", # Show values with 2 decimals
+        aspect="auto", 
+        color_continuous_scale="RdBu_r", 
+        zmin=-1, zmax=1,
+        height=dynamic_height # Apply dynamic height
+    )
+    
+    # 2. Refine Layout for Readability
+    fig_corr.update_layout(
+        margin=dict(l=100, r=20, t=50, b=100), # Add margins for long ticker names
+        font=dict(size=10), # Set a readable base font size
+        xaxis_nticks=num_tickers,
+        yaxis_nticks=num_tickers
+    )
+    
+    # 3. Rotate X-axis labels to prevent overlapping
+    fig_corr.update_xaxes(side="bottom", tickangle=-45)
+    
+    st.plotly_chart(fig_corr, use_container_width=True)
 
     # --- TAB 3: TORNADO STRESS TEST ---
     with tab3:
@@ -289,4 +304,5 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
