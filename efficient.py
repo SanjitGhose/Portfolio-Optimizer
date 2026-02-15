@@ -1337,8 +1337,9 @@ def main():
         pos_df = pd.DataFrame(position_data).sort_values('Position Value', ascending=False)
         
         # Display position table with conditional formatting
-        st.dataframe(
-            pos_df.style.format({
+        # Try gradient styling first, fall back to simple formatting if matplotlib unavailable
+        try:
+            styled_df = pos_df.style.format({
                 'Shares': '{:.0f}',
                 'Avg Cost': '₹{:.2f}',
                 'Current Price': '₹{:.2f}',
@@ -1349,11 +1350,28 @@ def main():
                 'Ann. Return %': '{:.2f}',
                 'Ann. Vol %': '{:.2f}',
                 'Sharpe': '{:.3f}'
-            }).background_gradient(subset=['P&L %'], cmap='RdYlGn', vmin=-20, vmax=20)
-            .background_gradient(subset=['Weight %'], cmap='Blues'),
-            use_container_width=True,
-            height=400
-        )
+            }).background_gradient(subset=['P&L %'], cmap='RdYlGn', vmin=-20, vmax=20)\
+              .background_gradient(subset=['Weight %'], cmap='Blues')
+            
+            st.dataframe(styled_df, use_container_width=True, height=400)
+        except ImportError:
+            # Matplotlib not available, use simple formatting
+            st.dataframe(
+                pos_df.style.format({
+                    'Shares': '{:.0f}',
+                    'Avg Cost': '₹{:.2f}',
+                    'Current Price': '₹{:.2f}',
+                    'Position Value': '₹{:,.0f}',
+                    'Weight %': '{:.2f}',
+                    'P&L': '₹{:,.0f}',
+                    'P&L %': '{:.2f}',
+                    'Ann. Return %': '{:.2f}',
+                    'Ann. Vol %': '{:.2f}',
+                    'Sharpe': '{:.3f}'
+                }),
+                use_container_width=True,
+                height=400
+            )
         
         # Position concentration chart
         st.markdown("**Portfolio Concentration**")
