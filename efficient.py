@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -29,6 +29,8 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { gap: 24px; }
     .stTabs [data-baseweb="tab"] { height: 50px; background-color: #1E1E1E; border-radius: 4px; color: #FFF; }
     .stTabs [aria-selected="true"] { background-color: #4F8BF9; color: #FFF; }
+    
+    /* THE LEGIBILITY FIX: Force the chart container to allow for massive height without clipping */
     .element-container iframe { height: auto !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -47,8 +49,15 @@ def fetch_data(tickers, period="2y"):
     try:
         data = yf.download(tickers, period=period, auto_adjust=False, threads=True)
         if isinstance(data.columns, pd.MultiIndex):
-            return data['Adj Close'] if 'Adj Close' in data.columns.get_level_values(0) else data['Close']
-        return data['Adj Close'] if 'Adj Close' in data.columns else data['Close']
+            if 'Adj Close' in data.columns.get_level_values(0):
+                return data['Adj Close']
+            elif 'Close' in data.columns.get_level_values(0):
+                return data['Close']
+        elif 'Adj Close' in data.columns:
+            return data['Adj Close']
+        elif 'Close' in data.columns:
+            return data['Close']
+        return data.iloc[:, 0] if not data.empty else pd.DataFrame()
     except: return pd.DataFrame()
 
 def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, risk_free_rate):
@@ -72,7 +81,7 @@ def main():
         usd_rate = get_currency_rate()
         st.metric("USD/INR Rate", f"₹{usd_rate:.2f}")
 
-    # Data Loading
+    # Data Loading (Defaulting to your 20 tickers)
     if 'portfolio_df' not in st.session_state:
         data = {
             "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "IT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
@@ -119,7 +128,7 @@ def main():
     pnl = total_value - total_invested
     pnl_pct = (pnl/total_invested)*100
 
-    # --- PORTFOLIO DASHBOARD ---
+    # --- PORTFOLIO METRICS ---
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("💰 Portfolio Value", f"₹{total_value:,.0f}")
     c2.metric("💸 Invested Capital", f"₹{total_invested:,.0f}")
@@ -131,9 +140,10 @@ def main():
     
     curr_weights = np.array([portfolio_clean[portfolio_clean['Ticker']==t]['Weight'].sum() for t in market_data.columns])
     curr_ret, curr_std, curr_sharpe = calculate_portfolio_metrics(curr_weights, mean_returns, cov_matrix, risk_free_rate)
+    
     c4.metric("⚡ True Sharpe Ratio", f"{curr_sharpe:.2f}")
 
-    # --- INTELLIGENT COMMENTARY ---
+    # --- DYNAMIC INTELLIGENCE COMMENTARY ---
     st.subheader("💡 Quant Intelligence Dashboard")
     col_comm1, col_comm2 = st.columns(2)
     with col_comm1:
@@ -159,7 +169,6 @@ def main():
     # --- TAB 1: EFFICIENT FRONTIER ---
     with tab1:
         st.subheader("Efficient Frontier Optimization")
-        
         c_left, c_right = st.columns([3, 1])
         with c_left:
             num_portfolios = 2000
@@ -188,46 +197,58 @@ def main():
             st.info(f"**Ann. Return:** {curr_ret*100:.2f}%")
             st.error(f"**Ann. Risk:** {curr_std*100:.2f}%")
 
-    # --- TAB 2: MAXIMIZED COVARIANCE MATRIX ---
+    # --- TAB 2: MAXIMIZED LEGIBLE COVARIANCE MATRIX ---
     with tab2:
         st.subheader("🔬 Asset Correlation Matrix")
+        st.caption("ULTRA-LEGIBLE VIEW: No sidebars, massive fonts. Click 'Expand' for full-screen clarity.")
         
         corr_matrix = log_returns.corr()
         num_assets = len(market_data.columns)
-        dynamic_height = max(1400, num_assets * 70)
+        
+        # HUGE DYNAMIC HEIGHT: 75 pixels per asset ensures clarity for 20+ tickers
+        # Total height will be ~1500px, creating a scrollable high-def grid.
+        dynamic_height = max(1500, num_assets * 75)
         
         fig_corr = px.imshow(
-            corr_matrix, text_auto=".2f", aspect="equal", 
-            color_continuous_scale="RdBu_r", zmin=-1, zmax=1, height=dynamic_height
+            corr_matrix, 
+            text_auto=".2f", 
+            aspect="equal", # Keeps cells perfectly square
+            color_continuous_scale="RdBu_r", 
+            zmin=-1, zmax=1,
+            height=dynamic_height
         )
         
         fig_corr.update_layout(
-            font=dict(size=18, color="white"), 
-            margin=dict(l=200, r=20, t=100, b=200),
-            xaxis_nticks=num_assets, yaxis_nticks=num_assets,
-            template="plotly_dark", coloraxis_showscale=False
+            font=dict(size=18, color="white"), # Bold cell numbers
+            margin=dict(l=200, r=20, t=100, b=200), # Deep margins for full ticker names
+            xaxis_nticks=num_assets,
+            yaxis_nticks=num_assets,
+            template="plotly_dark",
+            coloraxis_showscale=False # REMOVED COLORBAR FOR MAX WIDTH
         )
+        
         fig_corr.update_xaxes(tickangle=-45, side="bottom", tickfont=dict(size=18))
         fig_corr.update_yaxes(tickfont=dict(size=18))
+        
         st.plotly_chart(fig_corr, use_container_width=True)
         
-    # --- TAB 3: TORNADO STRESS TEST ---
+    # --- TAB 3: TORNADO STRESS TEST WITH AI BOOM ---
     with tab3:
-        st.subheader("🌪️ Risk Sensitivity Analysis")
-        
+        st.subheader("🌪️ Interactive Stress Testing")
         col_inputs, col_chart = st.columns([1, 2])
         with col_inputs:
             crash_pct = st.slider("📉 Market Crash %", -50, 0, -15)
             bull_pct = st.slider("📈 Market Bull %", 0, 50, 15)
-            ai_boom = st.slider("🤖 Tech AI Boom %", 0, 100, 40)
+            ai_boom_pct = st.slider("🤖 Tech AI Boom %", 0, 100, 40)
+            rate_hike = st.slider("🏦 Rate Hike Impact %", -20, 0, -5)
 
         with col_chart:
-            # Beta calculation (Sensitivity)
-            beta = curr_std / 0.15 
+            beta = curr_std / 0.15
             scenarios = {
                 f"Market Crash ({crash_pct}%)": (crash_pct/100) * beta,
                 f"Market Bull (+{bull_pct}%)": (bull_pct/100) * beta,
-                f"Tech AI Boom (+{ai_boom}%)": (ai_boom/100) * (beta * 1.5) # AI boom has higher sensitivity
+                f"Tech AI Boom (+{ai_boom_pct}%)": (ai_boom_pct/100) * (beta * 1.5),
+                "Rate Hike Shock": (rate_hike/100) * (beta * 1.2)
             }
             impacts = [total_value * factor for factor in scenarios.values()]
             fig_tor = go.Figure(go.Bar(
@@ -240,5 +261,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-
+        
