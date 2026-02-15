@@ -1,4 +1,4 @@
-    import streamlit as st
+import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -262,3 +262,4 @@ def main():
 if __name__ == "__main__":
     main()
         
+
