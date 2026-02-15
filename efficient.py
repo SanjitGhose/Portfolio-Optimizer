@@ -30,7 +30,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { height: 50px; background-color: #1E1E1E; border-radius: 4px; color: #FFF; }
     .stTabs [aria-selected="true"] { background-color: #4F8BF9; color: #FFF; }
     
-    /* Ensure the plot container allows for full height expansion */
+    /* Force plot container to allow for full height expansion */
     .element-container iframe { height: auto !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -84,7 +84,7 @@ def main():
     # Data Loading
     if 'portfolio_df' not in st.session_state:
         data = {
-            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "IT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
+            "Ticker": ["OLAELEC.NS", "BAJAJHFL.NS", "CESC.NS", "KOTAKIT.NS", "TATSILV.NS", "KALYANKJIL.NS", "ITC.NS", "CASTROLIND.NS", "GAIL.NS", "REDINGTON.NS", "ADANIPOWER.NS", "TMPV.NS", "GROWW.NS", "BSLNIFTY.NS", "PHARMABEES.NS", "GROWWMETAL.NS", "TATAGOLD.NS", "TATASTEEL.NS", "VEDL.NS", "SBIN.NS"],
             "Shares": [31, 20, 20, 70, 123, 10, 7, 20, 20, 10, 10, 10, 12, 72, 100, 195, 155, 20, 14, 10],
             "Avg Cost": [37.86, 109.5, 176.18, 40.19, 27.4, 473.05, 351.99, 204.65, 177.22, 273.55, 152.04, 391.37, 175.32, 29.49, 22.38, 10.74, 13.53, 171.74, 524.11, 881.58],
             "Currency": ["INR"] * 20
@@ -182,38 +182,37 @@ def main():
     # --- TAB 2: LEGIBLE COVARIANCE MATRIX (MAXIMIZED VIEW) ---
     with tab2:
         st.subheader("🔬 Asset Correlation Matrix")
-        st.caption("Red = Positive Correlation | Blue = Negative Correlation. Full details visible upon expansion.")
+        st.caption("Detailed view of asset relationships. Colorbar removed for maximum clarity.")
         
         corr_matrix = log_returns.corr()
         num_assets = len(market_data.columns)
         
-        # INCREASED DYNAMIC HEIGHT: 50 pixels per asset ensures labels and cells are huge
-        dynamic_height = max(1000, num_assets * 50)
+        # 55 pixels per asset ensures the cells are large and legible
+        dynamic_height = max(1100, num_assets * 55)
         
         fig_corr = px.imshow(
             corr_matrix, 
             text_auto=".2f", 
-            aspect="equal", # Keeps cells square so they don't stretch awkwardly
+            aspect="equal", 
             color_continuous_scale="RdBu_r", 
             zmin=-1, zmax=1,
             height=dynamic_height
         )
         
         fig_corr.update_layout(
-            font=dict(size=14, color="white"),
-            margin=dict(l=150, r=50, t=100, b=150), 
+            font=dict(size=16, color="white"), # Larger cell fonts
+            margin=dict(l=150, r=20, t=100, b=150), # Tighter right margin since colorbar is gone
             xaxis_nticks=num_assets,
             yaxis_nticks=num_assets,
             template="plotly_dark",
-            coloraxis_colorbar=dict(title="Corr", thickness=20)
+            coloraxis_showscale=False # REMOVES THE COLOR SIDE BAR
         )
         
-        fig_corr.update_xaxes(tickangle=-45, side="bottom", tickfont=dict(size=13))
-        fig_corr.update_yaxes(tickfont=dict(size=13))
+        fig_corr.update_xaxes(tickangle=-45, side="bottom", tickfont=dict(size=14))
+        fig_corr.update_yaxes(tickfont=dict(size=14))
         
-        # Set use_container_width to True to let it fill the center column, 
-        # but the height will drive the "Expansion" clarity.
         st.plotly_chart(fig_corr, use_container_width=True)
+        
         
     # --- TAB 3: TORNADO STRESS TEST ---
     with tab3:
@@ -238,4 +237,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-                         
+    
