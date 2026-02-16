@@ -45,18 +45,38 @@ def get_currency_rate():
 
 def fetch_data(tickers, period="2y"):
     if not tickers: return pd.DataFrame()
+    # Add Benchmark for Beta/Treynor calculation
+    search_tickers = tickers + ["^NSEI"]
     try:
-        data = yf.download(tickers, period=period, auto_adjust=False, threads=True)
+        data = yf.download(search_tickers, period=period, auto_adjust=False, threads=True)
         if 'Adj Close' in data.columns: return data['Adj Close']
         elif 'Close' in data.columns: return data['Close']
         return data.iloc[:, 0] if not data.empty else pd.DataFrame()
     except: return pd.DataFrame()
 
-def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, rf_rate):
+def calculate_portfolio_metrics(weights, mean_returns, cov_matrix, rf_rate, log_returns, benchmark_returns):
+    # Annualized Return & Volatility
     returns = np.sum(mean_returns * weights) * 252
     std_dev = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights))) * np.sqrt(252)
+    
+    # Sharpe Ratio
     sharpe = (returns - rf_rate) / std_dev if std_dev != 0 else 0
-    return returns, std_dev, sharpe
+    
+    # Sortino Ratio (Downside Risk Only)
+    # Calculate daily portfolio returns
+    portfolio_daily_ret = (log_returns * weights).sum(axis=1)
+    downside_ret = portfolio_daily_ret[portfolio_daily_ret < 0]
+    downside_std = downside_ret.std() * np.sqrt(252)
+    sortino = (returns - rf_rate) / downside_std if downside_std != 0 else 0
+    
+    # Treynor Ratio (Systematic Risk Only)
+    # Calculate Beta against Benchmark
+    covariance = np.cov(portfolio_daily_ret, benchmark_returns)[0, 1]
+    market_var = np.var(benchmark_returns)
+    beta = covariance / market_var if market_var != 0 else 1
+    treynor = (returns - rf_rate) / beta if beta != 0 else 0
+    
+    return returns, std_dev, sharpe, sortino, treynor, beta
 
 # --- Main Application ---
 
@@ -96,7 +116,21 @@ def main():
         if market_data.empty: st.stop()
 
     current_prices = market_data.iloc[-1]
+    
+    # Separate Benchmark from Portfolio Assets
+    if "^NSEI" in market_data.columns:
+        benchmark_series = market_data["^NSEI"]
+        asset_data = market_data.drop(columns=["^NSEI"])
+    else:
+        # Fallback if benchmark download fails
+        asset_data = market_data
+        benchmark_series = market_data.iloc[:, 0] 
+
+    # Ensure tickers in DF match downloaded data columns
+    valid_tickers = [t for t in tickers if t in asset_data.columns]
+    
     def get_val(row):
+        if row['Ticker'] not in valid_tickers: return 0
         p = current_prices.get(row['Ticker'], 0)
         v = p * row['Shares']
         return v * usd_rate if row.get('Currency') == "USD" else v
@@ -106,18 +140,34 @@ def main():
     total_inv = (edited_df['Shares'] * edited_df['Avg Cost']).sum()
     pnl_pct = ((total_val - total_inv) / total_inv) * 100 if total_inv > 0 else 0
 
-    log_returns = np.log(market_data / market_data.shift(1)).dropna()
+    # Log Returns Calculation
+    log_returns = np.log(asset_data / asset_data.shift(1)).dropna()
+    benchmark_returns = np.log(benchmark_series / benchmark_series.shift(1)).dropna()
+    
+    # Align dates between portfolio and benchmark
+    common_index = log_returns.index.intersection(benchmark_returns.index)
+    log_returns = log_returns.loc[common_index]
+    benchmark_returns = benchmark_returns.loc[common_index]
+
     mean_ret = log_returns.mean()
     cov_mat = log_returns.cov()
     
-    weights = np.array([edited_df[edited_df['Ticker']==t]['Current_Value'].sum()/total_val for t in market_data.columns])
-    ann_ret, ann_std, ann_sharpe = calculate_portfolio_metrics(weights, mean_ret, cov_mat, rf_rate)
+    # Calculate Weights based on Current Value
+    weights = np.array([edited_df[edited_df['Ticker']==t]['Current_Value'].sum()/total_val for t in log_returns.columns])
+    
+    # Calculate Metrics
+    ann_ret, ann_std, ann_sharpe, ann_sortino, ann_treynor, beta = calculate_portfolio_metrics(
+        weights, mean_ret, cov_mat, rf_rate, log_returns, benchmark_returns
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
+    # --- Top Metrics Row ---
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Current Value", f"₹{total_val:,.0f}")
     c2.metric("Net P&L", f"{pnl_pct:.2f}%")
-    c3.metric("Sharpe Ratio", f"{ann_sharpe:.2f}")
-    c4.metric("Volatility", f"{ann_std*100:.1f}%")
+    c3.metric("Exp. Return", f"{ann_ret*100:.1f}%")
+    c4.metric("Sharpe", f"{ann_sharpe:.2f}")
+    c5.metric("Sortino", f"{ann_sortino:.2f}")
+    c6.metric("Treynor", f"{ann_treynor:.2f}")
 
     tab1, tab2, tab3 = st.tabs(["🚀 Frontier", "🔬 Legible Matrix", "🌪️ Stress Test"])
 
@@ -125,9 +175,13 @@ def main():
         st.subheader("Efficient Frontier Analysis")
         num_sim = 2000
         results = np.zeros((3, num_sim))
+        # Simulation loop (Simplified for speed - using basic Sharpe)
         for i in range(num_sim):
-            w = np.random.random(len(market_data.columns)); w /= np.sum(w)
-            r, s, sh = calculate_portfolio_metrics(w, mean_ret, cov_mat, rf_rate)
+            w = np.random.random(len(log_returns.columns)); w /= np.sum(w)
+            # Fast calc for frontier
+            r = np.sum(mean_ret * w) * 252
+            s = np.sqrt(np.dot(w.T, np.dot(cov_mat, w))) * np.sqrt(252)
+            sh = (r - rf_rate) / s
             results[0,i], results[1,i], results[2,i] = s, r, sh
         
         # Base Scatter
@@ -135,7 +189,7 @@ def main():
                             labels={'x':'Risk (Vol)','y':'Return','color':'Sharpe'}, 
                             template="plotly_dark", color_continuous_scale='Spectral_r')
         
-        # Add Star as a separate Trace to ensure it stays on top (Z-order)
+        # Add Star as a separate Trace
         fig_ef.add_trace(go.Scatter(
             x=[ann_std], y=[ann_ret],
             mode='markers+text',
@@ -156,7 +210,7 @@ def main():
     with tab2:
         st.subheader("🔬 Institutional Correlation Matrix")
         corr_matrix = log_returns.corr()
-        num_assets = len(tickers)
+        num_assets = len(valid_tickers)
         fig_corr = px.imshow(
             corr_matrix, text_auto=".2f", aspect="auto", 
             color_continuous_scale="RdBu_r", zmin=-1, zmax=1,
@@ -199,4 +253,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
